@@ -1,13 +1,16 @@
 [project]
 
-name = "GW2_API"
+name = "gw2apiV1"
 version = "0.0.1"
 
-authors = ["Nexzen <nexzen@gmail.com>"]
-tags = []
+authors = ["cjschneider2 <cjschneider2@gmail.com>"]
+
+[dependencies.http]
+version = "0.1.0"
+git = "https://github.com/chris-morgan/rust-http.git"
 
 [[bin]]
 
-name = "GW2_API"
+name = "gw2apiV1"
 path = "src/main.rs"
 
