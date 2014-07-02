@@ -1,0 +1,13 @@
+[project]
+
+name = "GW2_API"
+version = "0.0.1"
+
+authors = ["Nexzen <nexzen@gmail.com>"]
+tags = []
+
+[[bin]]
+
+name = "GW2_API"
+path = "src/main.rs"
+
