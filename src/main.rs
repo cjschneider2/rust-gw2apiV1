@@ -1,83 +1,91 @@
-extern crate http;
+#![feature(plugin)]
+
+extern crate hyper;
+
+#[plugin]
+extern crate from_json_macros;
+
+extern crate from_json;
 extern crate serialize;
 
-use serialize::json;
-use serialize::{Decoder, Decodable};
-use http::client::RequestWriter;
-use http::method::Get;
 
-#[deriving(Decodable)]
-pub struct ApiBuild{
-    build_id: int,
-}
-#[deriving(Decodable)]
-pub struct ApiItems{
-    items: Vec<int>,
-}
-#[deriving(Decodable)]
-pub struct ApiRecipeDetails{
-    recipe_id: int,
-    type_: String,
-    output_item_id: String,
-    output_item_count: String,
-    min_rating: String,
-    time_to_craft_ms: String,
-    vendor_value: String,
-    disciplines: Vec<String>,
-    flags: Vec<String>,
-    ingredients: Vec<ApiIngredient>,
-}
-#[deriving(Decodable)]
-pub struct ApiIngredient{
-    item_id: String,
-    count: String,
+use std::io::stdout;
+use std::io::util::copy;
+
+use hyper::Client;
+
+use from_json::FromJson;
+
+#[from_json_struct]
+#[deriving(Show)]
+struct Recipes {
+    id : i32,
+    #[from_json_name = "type"]
+    recipe_type : String,
+    output_item_id : i32,
+    output_item_count : i32,
+    time_to_craft_ms : i32,
+    disciplines : Vec<String>,
+    min_rating : i32,
+    flags : Vec<String>,
+    ingredients : Vec<Ingredients>
 }
 
-fn main() {
-    // Build ID
-    let api_build_url = "https://api.guildwars2.com/v1/build.json";
-    let api_build_data = make_api_request(api_build_url.as_slice());
-    let GW2apiBuild: ApiBuild = decode_api_data(api_build_data);
-    println!("Build ID: {}",GW2apiBuild.build_id);
-    /*
-    // Items
-    let api_items_url = "https://api.guildwars2.com/v1/items.json";
-    let api_items_data = make_api_request(api_items_url.as_slice());
-    let GW2apiItems: ApiItems = decode_api_data(api_items_data);
-    println!("Build ID: {}",GW2apiItems.items);
-    */
-    let api_RecipeDetails_url = "https://api.guildwars2.com/v1/recipe_details.json?recipe_id=1275";
-    let api_RecipeDetails_data = make_api_request(api_RecipeDetails_url.as_slice());
-    let GW2apiRecipeDetails: ApiRecipeDetails = decode_api_data(api_RecipeDetails_data);
-    println!("{}",GW2apiRecipeDetails.type_);
+#[from_json_struct]
+#[deriving(Show)]
+struct Ingredients {
+    item_id : i32,
+    count : i32
 }
 
-fn decode_api_data<T: Decodable<json::Decoder,json::DecoderError>>(strData: Box<String>) -> T{
-    // Process the JSON request
-    let json_object = json::from_str(strData.as_slice());
-    let mut decoder = json::Decoder::new(json_object.unwrap());
-    let decoded: T = match Decodable::decode(&mut decoder) {
-        Ok(v)  => v,
-        Err(e) => fail!("Decoding error: {}",e),
+fn main () {
+    // create a client
+    let mut client = Client::new();
+
+    // Create an outgoing request.
+    let mut res = match client.get("https://api.guildwars2.com/v2/recipes/7319")
+                              .send() {
+        Ok(res)  => res,
+        Err(err) => panic!("Failed to connect: {:?}", err)
     };
-    return decoded;
+
+    // read the response
+
+    println!("Response: {}", res.status);
+    let body = res.read_to_string().unwrap();
+    println!("Body: {}", body);
+
+    let body_json = serialize::json::from_str(body.as_slice()).unwrap();
+    let content: Recipes = FromJson::from_json(&body_json).unwrap();
+    assert_eq!(content.id, 7319);
 }
 
-fn make_api_request(url: &str) -> Box<String>{
-    // Make the request
-    let request: RequestWriter = RequestWriter::new(Get, from_str(url)
-                                                         .expect("Invalid URL"))
-                                                         .unwrap();
-    println!("Requested URL: {}", request.url.to_str());
-    let mut response = match request.read_response() {
-        Ok(response)  => response,
-        Err(_request) => fail!("No response"),
-    };
-    println!("Status: {}",response.status);
-    let body = match response.read_to_end() {
-        Ok(body)  => body,
-        Err(err)  => fail!("Failed to read response: {}",err),
-    };
-    let data = box String::from_utf8(body).unwrap();
-    return data;
+#[test]
+fn test1() {
+    let test_json = serialize::json::from_str(r#"
+{
+  "type": "RefinementEctoplasm",
+  "output_item_id": 46742,
+  "output_item_count": 1,
+  "min_rating": 450,
+  "time_to_craft_ms": 5000,
+  "disciplines": [ "Armorsmith", "Artificer", "Huntsman", "Weaponsmith" ],
+  "flags": [ "AutoLearned" ],
+  "ingredients": [
+    { "item_id": 19684, "count": 50 },
+    { "item_id": 19721, "count": 1 },
+    { "item_id": 46747, "count": 10 }
+  ],
+  "id": 7319
+}"#).unwrap();
+
+    let content: Recipes = FromJson::from_json(&test_json).unwrap();
+
+    assert_eq!(content.id, 7319);
+    assert_eq!(content.output_item_id, 46742);
+    assert_eq!(content.output_item_count, 1);
+    assert_eq!(content.min_rating, 450);
+    assert_eq!(content.disciplines.len(), 4);
+    assert_eq!(content.ingredients.len(), 3);
+    assert_eq!(content.flags[0], "AutoLearned");
 }

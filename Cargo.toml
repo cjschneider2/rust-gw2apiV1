@@ -1,16 +1,19 @@
 [project]
 
-name = "gw2apiV1"
+name = "gw2apiV2"
 version = "0.0.1"
 
 authors = ["cjschneider2 <cjschneider2@gmail.com>"]
 
-[dependencies.http]
+[dependencies.hyper]
 version = "0.1.0"
-git = "https://github.com/chris-morgan/rust-http.git"
+
+[dependencies.from_json]
+git = "https://github.com/tomaka/from_json"
+
+[dependencies.from_json_macros]
+git = "https://github.com/tomaka/from_json"
 
 [[bin]]
 
-name = "gw2apiV1"
-path = "src/main.rs"
-
+name = "gw2apiV2"
